@@ -1,4 +1,4 @@
 uberbackup
 ==========
 
-Linux Backup/Restore scripts
+Linux Backup scripts
