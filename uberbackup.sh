@@ -10,7 +10,7 @@ CURRENTDIR="$(date '+%d-%m-%Y')"
 KEEP="7"
 
 # Gdzie wysyłać logi
-MAILTO="gglinski@grupaeuro.pl"
+MAILTO=""
 
 IONICE="/usr/bin/ionice -c 2 -n 7"
 LOGFILE="$(mktemp)"
