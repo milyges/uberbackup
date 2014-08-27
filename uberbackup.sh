@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # Glowny katalog backupu
 BACKUPDIR="/mnt/backup/uberbackup"
@@ -18,8 +18,8 @@ LOGFILE="$(mktemp)"
 log() {
 	while read LINE
 	do
-		NOW=$(date '+%H:%M %d-%m-%Y')
-		echo "${NOW}: ${LINE}" >> "${LOGFILE}"
+		NOW="$(date '+%H:%M %d-%m-%Y')"
+		[ -z "${MAILTO}" ] && echo "${NOW}: ${LINE}" || echo "${NOW}: ${LINE}" >> "${LOGFILE}"
 	done
 }
 
@@ -40,8 +40,13 @@ rotate() {
 		${IONICE} rm -rf "${1}/${DIR}" 2>&1 | log
 	done
 
-	echo "Linking ${LATESTDIR} -> ${3}" | log
-	${IONICE} cp -al "${1}/${LATESTDIR}" "${1}/${3}" 2>&1 | log
+	if [ "${LATESTDIR}" != "${3}" ]
+	then
+		echo "Linking ${LATESTDIR} -> ${3}" | log	
+		${IONICE} cp -al "${1}/${LATESTDIR}" "${1}/${3}" 2>&1 | log
+	else
+		echo "Destination directory is the same as the latest backup directory, skippping rotate" | log
+	fi
 	touch "${1}/${3}" 2>&1 | log
 }
 
@@ -81,10 +86,7 @@ backup_mysql() {
 		[ $? -ne 0 ] && rm "${1}/mysql/${DB}.sql" || bzip2 "${1}/mysql/${DB}.sql" 2>&1 | log
 		cat "${TMPLOG}" | log
 		rm -f "${TMPLOG}"
-		if [ ! -s "${1}/mysql/${DB}.sql.bz2" ]
-		then
-			echo "ERROR: ${DB}.sql not bzipped!" | log
-		fi
+		[ ! -s "${1}/mysql/${DB}.sql.bz2" ] && echo "ERROR: ${DB}.sql not bzipped!" | log
 	done
 }
 
@@ -93,12 +95,16 @@ echo "Starting backup on $(hostname)" | log
 if [ ! -d "${BACKUPDIR}" ]
 then
 	echo "Fatal error: ${BACKUPDIR} does not exist" | log
-	mail -s "UberBackup: failed on $(hostname)" "${MAILTO}" < "${LOGFILE}"
+	[ -n "${MAILTO}" ] && mail -s "UberBackup: failed on $(hostname)" "${MAILTO}" < "${LOGFILE}"
 	rm "${LOGFILE}"
 	exit 1
 fi
 
 rotate "${BACKUPDIR}" "${KEEP}" "${CURRENTDIR}"
+
+#
+# Dodaj swoje kopie poniżej
+#
 
 #backup_fs "${BACKUPDIR}/${CURRENTDIR}" "/etc/"
 #backup_fs "${BACKUPDIR}/${CURRENTDIR}" "/usr/local/"
@@ -106,6 +112,11 @@ rotate "${BACKUPDIR}" "${KEEP}" "${CURRENTDIR}"
 
 #backup_mysql "${BACKUPDIR}/${CURRENTDIR}" "backup" "***"
 
-mail -s "UberBackup: finished on $(hostname)" "${MAILTO}" < "${LOGFILE}"
-rm "${LOGFILE}"
 
+
+#
+# Koniec listy kopii
+#
+
+[ -n "${MAILTO}" ] && mail -s "UberBackup: finished on $(hostname)" "${MAILTO}" < "${LOGFILE}"
+rm "${LOGFILE}"
